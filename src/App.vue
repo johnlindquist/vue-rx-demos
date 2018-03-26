@@ -1,20 +1,11 @@
 <template>
 
   <section class="section">
-    <div v-if="!done$">
-      <h1 class="title">{{output$}}</h1>
-      <b-modal :active="stillThere$">
-
-        <div class="content">
-          <h1 class="title has-text-white">Still there?</h1>
-          <h1 class="title has-text-white">{{countdown$}}</h1>
-        </div>
-
-      </b-modal>
-    </div>
-    <div v-else>
-      <h1 class="title">Bye!</h1>
-    </div>
+    <b-notification :active="done$">
+      <h1>Signed out</h1>
+    </b-notification>
+    <h1 class="title">{{output$}}</h1>
+    <div class="subtitle">{{events$}}</div>
   </section>
 </template>
 
@@ -30,49 +21,42 @@ export default {
       .pluck("key")
       .scan((text, key) => text + key)
 
-    const mousemove$ = Observable.fromEvent(
+    const mouse$ = Observable.fromEvent(
       window,
       "mousemove"
-    ).map(({ clientX, clientY }) => ({
-      clientX,
-      clientY
+    ).map(event => ({
+      x: event.clientX,
+      y: event.clientY
     }))
 
-    const eventsTimeout$ = Observable.merge(
+    const events$ = Observable.merge(
       keys$,
-      mousemove$
-    ).switchMapTo(
-      Observable.timer(1000).mapTo("Still there?")
+      mouse$
     )
 
-    const stillThere$ = Observable.merge(
-      mousemove$.mapTo(false),
-      keys$.mapTo(false),
-      eventsTimeout$.mapTo(true)
-    )
+    const countdown$ = Observable.interval(1000)
+      .startWith(3)
+      .scan(time => time - 1)
+      .takeWhile(time => time >= 0)
 
-    const countdown$ = stillThere$.switchMap(() =>
-      Observable.interval(1000)
-        .startWith(5)
-        .scan(remaining => remaining - 1)
-        .takeWhile(i => i >= 0)
-    )
-
-    const done$ = countdown$
-      .filter(value => value === 0)
-      .mapTo(true)
-      .startWith(false)
-
-    const output$ = Observable.merge(
-      mousemove$,
-      keys$
-    )
+    const output$ = events$
+      .switchMapTo(
+        Observable.of("Keep it up! 👍").concat(
+          countdown$.delay(1000)
+        )
+      )
+      .takeWhile(value => value != 0)
+      .concat(Observable.of("We'll miss you! 🤧"))
 
     return {
+      events$,
       output$,
-      stillThere$,
-      countdown$,
-      done$
+      done$: Observable.of(false).concat(
+        output$
+          .last()
+          .delay(1000)
+          .mapTo(true)
+      )
     }
   }
 }
