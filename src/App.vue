@@ -1,78 +1,78 @@
 <template>
 
   <section class="section">
+    <div v-if="!done$">
+      <h1 class="title">{{output$}}</h1>
+      <b-modal :active="stillThere$">
 
-    <h1 class="title">{{text$}}</h1>
-    <form @submit.prevent="submitHandler">
-      <input type="text" class="input" @input="inputHandler">
-      <input type="submit" class="button" :disabled="disable$" :value="buttonText$">
-    </form>
+        <div class="content">
+          <h1 class="title has-text-white">Still there?</h1>
+          <h1 class="title has-text-white">{{countdown$}}</h1>
+        </div>
+
+      </b-modal>
+    </div>
+    <div v-else>
+      <h1 class="title">Bye!</h1>
+    </div>
   </section>
 </template>
+
 <script>
 import { Observable } from "rxjs"
 
 export default {
-  observableMethods: [
-    "submitHandler",
-    "inputHandler"
-  ],
   subscriptions() {
-    const input$ = this.inputHandler$
-      .pluck("target", "value")
-      .share()
+    const keys$ = Observable.fromEvent(
+      window,
+      "keydown"
+    )
+      .pluck("key")
+      .scan((text, key) => text + key)
 
-    const [empty$, term$] = input$
-      .startWith("")
-      .partition(term => term === "")
+    const mousemove$ = Observable.fromEvent(
+      window,
+      "mousemove"
+    ).map(({ clientX, clientY }) => ({
+      clientX,
+      clientY
+    }))
 
-    const formatResponse = res =>
-      res.response.length
-        ? res.response
-            .map(person => person.name)
-            .join(", ")
-        : "No results 😭"
-
-    const search = term =>
-      Observable.ajax(
-        `http://localhost:3000/people?delay=1000&name_like=${term}`
-      )
-        .map(formatResponse)
-        .share()
-
-    const result$ = this.submitHandler$
-      .withLatestFrom(term$, (_, term) => term)
-      .exhaustMap(term =>
-        Observable.race(
-          input$.mapTo("Cancelled 😢").take(1),
-          search(term).takeUntil(input$)
-        )
-      )
-
-    const text$ = Observable.merge(
-      this.submitHandler$.mapTo("Loading..."),
-      empty$.mapTo("Please type something!"),
-      term$.mapTo("Hit enter when ready"),
-      result$
+    const eventsTimeout$ = Observable.merge(
+      keys$,
+      mousemove$
+    ).switchMapTo(
+      Observable.timer(1000).mapTo("Still there?")
     )
 
-    const disable$ = Observable.merge(
-      this.submitHandler$.mapTo(true),
-      empty$.mapTo(true),
-      term$.mapTo(false)
-    ).startWith(true)
+    const stillThere$ = Observable.merge(
+      mousemove$.mapTo(false),
+      keys$.mapTo(false),
+      eventsTimeout$.mapTo(true)
+    )
 
-    const buttonText$ = Observable.merge(
-      this.submitHandler$.mapTo("Loading..."),
-      empty$.mapTo("Empty"),
-      term$.mapTo("Search"),
-      result$.mapTo("Change to Search Again")
+    const countdown$ = stillThere$.switchMap(() =>
+      Observable.interval(1000)
+        .startWith(5)
+        .scan(remaining => remaining - 1)
+        .takeWhile(i => i >= 0)
+    )
+
+    const done$ = countdown$
+      .filter(value => value === 0)
+      .mapTo(true)
+      .startWith(false)
+
+    const output$ = Observable.merge(
+      mousemove$,
+      keys$
     )
 
     return {
-      text$,
-      disable$,
-      buttonText$
+      output$,
+      stillThere$,
+      countdown$,
+      done$
     }
   }
 }
