@@ -44,7 +44,7 @@ export default {
       .withLatestFrom(term$, (_, term) => term)
       .exhaustMap(term =>
         Observable.race(
-          input$.mapTo("Cancelled 😢").take(1),
+          input$.take(1).mapTo("Cancelled 😢"),
           search(term).takeUntil(input$)
         )
       )
