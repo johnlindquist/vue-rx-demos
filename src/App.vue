@@ -1,6 +1,12 @@
 <template>
   <section class="section">
+    <b-modal :active="error$">
+      <h1 class="has-text-white">You Appear Offline</h1>
+      <button v-stream:click="retry$" class="button">Retry</button>
+    </b-modal>
+
     <button v-stream:click="load$" class="button">Load</button>
+
     <h1 class="title">{{name$}}</h1>
     <img :src="image$" alt="">
   </section>
@@ -8,14 +14,36 @@
 <script>
 import { Observable } from "rxjs"
 export default {
-  domStreams: ["load$"],
+  domStreams: ["load$", "retry$"],
   subscriptions() {
-    const name$ = Observable.of("Some Name")
-    const image$ = Observable.of("Image")
+    const person$ = Observable.merge(
+      this.load$,
+      this.retry$
+    )
+      .switchMapTo(
+        Observable.ajax(
+          `http://localhost:3000/people/0`
+        )
+          .map(res => res.response)
+          .catch(() => Observable.of("error"))
+      )
+      .share()
+
+    const error$ = person$.map(
+      message => message === "error"
+    )
+
+    const name$ = person$.pluck("name")
+    const image$ = person$
+      .pluck("image")
+      .map(
+        image => `http://localhost:3000/${image}`
+      )
 
     return {
       name$,
-      image$
+      image$,
+      error$
     }
   }
 }
