@@ -34,7 +34,7 @@ export default {
       mouse$
     )
 
-    const countdown$ = Observable.interval(1000)
+    const countdown$ = Observable.interval(500)
       .startWith(3)
       .scan(time => time - 1)
       .takeWhile(time => time >= 0)
@@ -42,21 +42,23 @@ export default {
     const output$ = events$
       .switchMapTo(
         Observable.of("Keep it up! 👍").concat(
-          countdown$.delay(1000)
+          countdown$.delay(500)
         )
       )
       .takeWhile(value => value != 0)
       .concat(Observable.of("We'll miss you! 🤧"))
 
+    const done$ = Observable.of(false).concat(
+      output$
+        .last()
+        .delay(500)
+        .mapTo(true)
+    )
+
     return {
       events$,
       output$,
-      done$: Observable.of(false).concat(
-        output$
-          .last()
-          .delay(1000)
-          .mapTo(true)
-      )
+      done$
     }
   }
 }
