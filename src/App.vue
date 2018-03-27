@@ -20,14 +20,9 @@ export default {
       .scan(time => time - 1)
       .takeWhile(time => time > 0)
       .concat(Observable.of("Wake up!"))
-      .do(console.log.bind(console))
-
-      .repeatWhen(() => {
-        console.log("repeat when")
-        return this.snooze$.takeUntil(
-          this.dismiss$
-        )
-      })
+      .repeatWhen(() =>
+        this.snooze$.takeUntil(this.dismiss$)
+      )
       .concat(
         Observable.of("Have a great day! 🤗")
       )
