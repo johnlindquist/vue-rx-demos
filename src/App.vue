@@ -1,11 +1,13 @@
 <template>
-  <section class="section">
+  <section>
     <b-tabs v-model="activeTab">
       <b-tab-item :label="person.name" v-for="person of people$" :key="person.id">
+
       </b-tab-item>
     </b-tabs>
     <h1 class="title">{{name$}}</h1>
-    <img :src="image$" alt="">
+    <img :src="image$" :alt="`Image of ${name$}`">
+
   </section>
 </template>
 
@@ -31,7 +33,7 @@ export default {
 
     const person$ = activeTab$
       .pluck("newValue")
-      .switchMap(id =>
+      .exhaustMap(id =>
         Observable.ajax(
           `http://localhost:3000/people/${id}`
         ).map(res => res.response)
